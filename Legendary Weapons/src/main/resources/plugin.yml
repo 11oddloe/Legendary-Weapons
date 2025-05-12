@@ -1,0 +1,26 @@
+name: LegendaryWeaponsPlugin
+version: 1.0
+main: LegendaryWeapons.legendaryWeapons.LegendaryWeapons
+api-version: "1.21"
+authors: [Oddrot09]
+description: Adds legendary weapons with special abilities
+website: https://example.com
+prefix: LW
+
+commands:
+  giveitem:
+    description: Gives a legendary weapon to a player
+    usage: /giveitem <player> <item>
+    permission: legendaryweapons.give
+    permission-message: "&cYou don't have permission to use this command!"
+    aliases: [giveweapon, lwgive]
+
+permissions:
+  legendaryweapons.give:
+    description: Allows using the giveitem command
+    default: op
+  legendaryweapons.*:
+    description: Gives access to all LegendaryWeapons commands
+    default: op
+    children:
+      legendaryweapons.give: true
