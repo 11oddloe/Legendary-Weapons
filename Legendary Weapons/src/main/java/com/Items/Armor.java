@@ -5,8 +5,6 @@ import org.bukkit.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -94,45 +92,6 @@ public class Armor implements Listener {
         }
     }
 
-    @EventHandler
-    public void onCraftGoldenCrown(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
-        if (event.getClickedBlock() == null || event.getClickedBlock().getType() != Material.CRAFTING_TABLE) return;
-
-        Player player = event.getPlayer();
-        ItemStack item = player.getInventory().getItemInMainHand();
-
-        if (item == null || item.getType() != Material.GOLDEN_HELMET) return;
-
-        // Check for 8 gold blocks around the crafting table
-        Location tableLoc = event.getClickedBlock().getLocation();
-        int goldBlocks = 0;
-
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                if (x == 0 && z == 0) continue; // Skip the crafting table itself
-                if (tableLoc.clone().add(x, 0, z).getBlock().getType() == Material.GOLD_BLOCK) {
-                    goldBlocks++;
-                }
-            }
-        }
-
-        if (goldBlocks >= 8) {
-            // Remove the gold blocks
-            for (int x = -1; x <= 1; x++) {
-                for (int z = -1; z <= 1; z++) {
-                    if (x == 0 && z == 0) continue;
-                    tableLoc.clone().add(x, 0, z).getBlock().setType(Material.AIR);
-                }
-            }
-
-            // Replace the golden helmet with golden crown
-            ItemStack goldenCrown = createArmorItem(Material.GOLDEN_HELMET, GOLDEN_CROWN);
-            player.getInventory().setItemInMainHand(goldenCrown);
-            player.sendMessage(ChatColor.GOLD + "You've crafted the Golden Crown!");
-            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-        }
-    }
 
     private boolean isCustomArmor(ItemStack item, String name) {
         if (item == null || !item.hasItemMeta() || !item.getItemMeta().hasDisplayName()) {
