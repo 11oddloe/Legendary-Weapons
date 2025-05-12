@@ -6,13 +6,17 @@ import com.Items.Commands;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.inventory.ItemFlag;
 import java.util.Arrays;
+import java.util.UUID;
 
 public class LegendaryWeapons extends JavaPlugin {
 
@@ -111,5 +115,44 @@ public class LegendaryWeapons extends JavaPlugin {
 
     public static LegendaryWeapons getInstance() {
         return instance;
+    }
+
+    private void registerGoldenCrownRecipe() {
+        // Create the Golden Crown item with netherite stats
+        ItemStack goldenCrown = new ItemStack(Material.GOLDEN_HELMET);
+        ItemMeta meta = goldenCrown.getItemMeta();
+        meta.setDisplayName(ChatColor.GOLD + "Golden Crown");
+        meta.setUnbreakable(true);
+
+        // Set armor toughness and knockback resistance like netherite
+        meta.addAttributeModifier(Attribute.GENERIC_ARMOR_TOUGHNESS,
+                new AttributeModifier(UUID.randomUUID(), "armor_toughness", 3.0,
+                        AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HEAD));
+        meta.addAttributeModifier(Attribute.GENERIC_KNOCKBACK_RESISTANCE,
+                new AttributeModifier(UUID.randomUUID(), "knockback_resistance", 0.1,
+                        AttributeModifier.Operation.ADD_NUMBER, EquipmentSlot.HEAD));
+
+        // Add protection equivalent to netherite
+        meta.addEnchant(Enchantment.PROTECTION, 3, true);
+
+        meta.setLore(Arrays.asList(
+                ChatColor.GRAY + "Royal headwear with the strength of netherite",
+                ChatColor.BLUE + "Grants regeneration and resistance"
+        ));
+        goldenCrown.setItemMeta(meta);
+
+        // Create the recipe (now cheaper since we're not using netherite)
+        ShapedRecipe recipe = new ShapedRecipe(
+                new NamespacedKey(this, "golden_crown"),
+                goldenCrown
+        );
+
+        recipe.shape("GGG", "GDG", "GGG");
+
+        // G = Gold Block, D = Diamond Helmet
+        recipe.setIngredient('G', Material.GOLD_BLOCK);
+        recipe.setIngredient('D', Material.GOLDEN_HELMET);
+
+        getServer().addRecipe(recipe);
     }
 }
