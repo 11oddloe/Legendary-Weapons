@@ -1,8 +1,11 @@
-package com.Items;
+package  com.Items;
 
 import LegendaryWeapons.legendaryWeapons.LegendaryWeapons;
+import com.google.common.collect.Multimap;
 import org.bukkit.*;
-import org.bukkit.block.Banner;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeModifier;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -10,6 +13,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.player.*;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffect;
@@ -37,11 +41,9 @@ public class Items implements Listener {
     public static final String POSEIDONS_TRIDENT = "Poseidon's Trident";
     public static final String DRAGON_WINGS = "Dragon Wings";
     public static final String ICE_BOW = "Ice Bow";
-    public static final String TAZER = "Tazer";
     public static final String MAGIC_SACK = "Magic Sack of Legend";
     public static final String LICH_STAFF = "Lich Staff";
     public static final String CALLING_OF_THE_WARDEN = "Calling of the Warden";
-    public static final String STAFF_OF_TRANSPORTATION = "Staff of Transportation";
     public static final String ENHANCEMENT_ORB = "Enhancement Orb";
     public static final String LIFE_DRAINER = "Life Drainer";
     public static final String GODS_GREATAXE = "God's Greataxe";
@@ -82,9 +84,6 @@ public class Items implements Listener {
             case CALLING_OF_THE_WARDEN:
                 useCallingOfTheWarden(event.getPlayer());
                 break;
-            case STAFF_OF_TRANSPORTATION:
-                useStaffOfTransportation(event.getPlayer());
-                break;
             case GODS_GREATAXE:
                 useGodsGreataxe(event.getPlayer());
                 break;
@@ -109,10 +108,8 @@ public class Items implements Listener {
 
         if (name.equals(THUNDER_STRIKER)) {
             handleThunderStriker(event, player);
-        } else if (name.equals(GODS_GREATAXE)) {
-            // Ensure damage isn't being overwritten
-            if (event.getDamage() < 24) {
-                event.setDamage(24);
+        if (name.equals(GODS_GREATAXE)) {
+                double baseDamage = plugin.getConfig().getDouble("items.gods_greataxe.base_damage");
             }
             // Add knockback effect
             if (event.getEntity() instanceof LivingEntity) {
@@ -256,42 +253,6 @@ public class Items implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onPlayerFish(PlayerFishEvent event) {
-        if (event.getState() != PlayerFishEvent.State.CAUGHT_ENTITY) return;
-        if (!(event.getCaught() instanceof Player)) return;
-
-        Player fisher = event.getPlayer();
-        ItemStack item = fisher.getInventory().getItemInMainHand();
-
-        if (!isCustomItem(item)) return;
-        String name = ChatColor.stripColor(item.getItemMeta().getDisplayName());
-        if (!name.equals(TAZER)) return;
-
-        Player target = (Player) event.getCaught();
-        ItemStack offhand = target.getInventory().getItemInOffHand();
-
-        if (offhand != null && !offhand.getType().isAir()) {
-            target.getInventory().setItemInOffHand(new ItemStack(AIR));
-            target.sendMessage(ChatColor.RED + "Your offhand has been disabled by a tazer!");
-        }
-
-        target.addPotionEffect(new PotionEffect(
-                PotionEffectType.SLOWNESS,
-                200,
-                2,
-                false,
-                true
-        ));
-
-        target.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, target.getLocation(), 20);
-        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.5f, 1.5f);
-
-        if (checkCooldown(fisher, "tazer", 20)) {
-            event.setCancelled(true);
-        }
-    }
-
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR &&
@@ -370,7 +331,7 @@ public class Items implements Listener {
     }
 
     private void useStarStaff(Player player) {
-        if (checkCooldown(player, "star_staff", 30)) return;
+        if (checkCooldown(player, "star_staff", 20)) return;
 
         Location loc = player.getEyeLocation();
         Vector dir = loc.getDirection().normalize();
@@ -400,21 +361,21 @@ public class Items implements Listener {
 
                 proj.getNearbyEntities(1.0, 1.0, 1.0).forEach(entity -> {
                     if (entity instanceof LivingEntity && !entity.equals(player)) {
-                        ((LivingEntity) entity).damage(6.0, player);
+                        ((LivingEntity) entity).damage(12.0, player);
                     }
                 });
             }
 
             private void explode(Location loc) {
-                loc.getWorld().createExplosion(loc, 4f, false, false);
-                loc.getWorld().spawnParticle(Particle.EXPLOSION, loc, 1);
+                loc.getWorld().createExplosion(loc, 7f, false, false);
+                loc.getWorld().spawnParticle(Particle.EXPLOSION, loc, (int) 1.5);
                 loc.getWorld().playSound(loc, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.0f);
             }
         }.runTaskTimer(plugin, 0, 1);
     }
 
     private void useEarthWand(Player player) {
-        if (checkCooldown(player, "earth_wand", 40)) return;
+        if (checkCooldown(player, "earth_wand", 30)) return;
 
         player.getWorld().playSound(player.getLocation(), Sound.BLOCK_STONE_PLACE, 1.0f, 0.8f);
         player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 200, 4));
@@ -464,7 +425,7 @@ public class Items implements Listener {
 
     private void usePoseidonsTrident(Player player) {
         if (!player.isSneaking()) return;
-        if (checkCooldown(player, "poseidons_trident", 12)) return;
+        if (checkCooldown(player, "poseidons_trident", 10)) return;
 
         Vector launch = player.getLocation().getDirection().normalize();
 
@@ -580,33 +541,6 @@ public class Items implements Listener {
         }, 1200L);
 
         player.sendMessage(ChatColor.DARK_PURPLE + "You summon a warden's minion to fight for you!");
-    }
-
-    private void useStaffOfTransportation(Player player) {
-        if (checkCooldown(player, "staff_of_transportation", 10)) return;
-
-        Banner nearestBanner = null;
-        double nearestDistance = Double.MAX_VALUE;
-
-        for (Entity entity : player.getNearbyEntities(124, 124, 124)) {
-            if (entity instanceof Banner) {
-                double distance = entity.getLocation().distance(player.getLocation());
-                if (distance < nearestDistance) {
-                    nearestDistance = distance;
-                    nearestBanner = (Banner) entity;
-                }
-            }
-        }
-
-        if (nearestBanner == null) {
-            player.sendMessage(ChatColor.RED + "No banners found within 124 blocks!");
-            return;
-        }
-
-        player.teleport(nearestBanner.getLocation().add(0.5, 1, 0.5));
-        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
-        player.getWorld().spawnParticle(Particle.PORTAL, player.getLocation(), 100);
-        player.sendMessage(ChatColor.GREEN + "Teleported to nearest banner!");
     }
 
     private void useGodsGreataxe(Player player) {
@@ -775,11 +709,9 @@ public class Items implements Listener {
                 createItem(STICK, EARTH_WAND),
                 createItem(TRIDENT, POSEIDONS_TRIDENT),
                 createItem(BOW, ICE_BOW),
-                createItem(FISHING_ROD, TAZER),
                 createItem(ELYTRA, DRAGON_WINGS),
                 createItem(BONE, LICH_STAFF),
                 createItem(NETHER_STAR, CALLING_OF_THE_WARDEN),
-                createItem(BLAZE_ROD, STAFF_OF_TRANSPORTATION),
                 createItem(NETHERITE_AXE, GODS_GREATAXE),
                 createItem(IRON_SWORD, SPEED_DAGGERS),
                 createItem(NETHERITE_INGOT, ENHANCEMENT_ORB),
@@ -808,6 +740,38 @@ public class Items implements Listener {
         meta.setUnbreakable(true);
         item.setItemMeta(meta);
         return item;
+    }
+    private ItemStack createGodsGreataxe() {
+        ConfigurationSection config = plugin.getConfig().getConfigurationSection("items.gods_greataxe");
+        ItemStack axe = new ItemStack(Material.valueOf(config.getString("material")));
+        ItemMeta meta = axe.getItemMeta();
+
+        // Set display name and lore
+        meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', config.getString("display_name")));
+
+        // Make unbreakable
+        meta.setUnbreakable(true);
+
+        // Add attack speed attribute
+        Collection<AttributeModifier> modifiers = new ArrayList<>();
+        modifiers.add(new AttributeModifier(
+                UUID.randomUUID(),
+                "generic.attackSpeed",
+                config.getDouble("attribute_modifiers.attack_speed"),
+                AttributeModifier.Operation.ADD_NUMBER,
+                EquipmentSlot.HAND
+        ));
+        modifiers.add(new AttributeModifier(
+                UUID.randomUUID(),
+                "generic.attackDamage",
+                config.getDouble("attribute_modifiers.attack_damage"),
+                AttributeModifier.Operation.ADD_NUMBER,
+                EquipmentSlot.HAND
+        ));
+        meta.setAttributeModifiers((Multimap<Attribute, AttributeModifier>) modifiers);
+
+        axe.setItemMeta(meta);
+        return axe;
     }
 
     private boolean checkCooldown(Player player, String key, int seconds) {
@@ -839,10 +803,8 @@ public class Items implements Listener {
                 name.equals(POSEIDONS_TRIDENT) ||
                 name.equals(DRAGON_WINGS) ||
                 name.equals(ICE_BOW) ||
-                name.equals(TAZER) ||
                 name.equals(LICH_STAFF) ||
                 name.equals(CALLING_OF_THE_WARDEN) ||
-                name.equals(STAFF_OF_TRANSPORTATION) ||
                 name.equals(ENHANCEMENT_ORB) ||
                 name.equals(LIFE_DRAINER) ||
                 name.equals(GODS_GREATAXE) ||
