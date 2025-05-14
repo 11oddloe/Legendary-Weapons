@@ -26,12 +26,3 @@ Adjust cooldowns and effects
 Set crafting permissions or loot rates
 (will be implemented in beta 0.3)
 
----
-
-🧑‍💻 Development
-This project uses gradle. To build it locally:
-
-```bash
-git clone https://github.com/11oddloe/Legendary-Weapons.git
-cd Legendary-Weapons
-./gradlew build 
