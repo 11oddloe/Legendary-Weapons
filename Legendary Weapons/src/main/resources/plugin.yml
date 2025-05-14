@@ -4,6 +4,7 @@ main: LegendaryWeapons.legendaryWeapons.LegendaryWeapons
 api-version: "1.21"
 authors: [Oddrot09]
 description: Adds legendary weapons with special abilities
+website: none
 
 commands:
   giveitem:

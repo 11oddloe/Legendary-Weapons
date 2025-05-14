@@ -51,9 +51,6 @@ public class Commands implements CommandExecutor {
             case "ice_bow":
                 item = createItem(Material.BOW, "Ice Bow", "Chance to freeze hit entities.");
                 break;
-            case "tazer":
-                item = createItem(Material.FISHING_ROD, "Tazer", "Disables offhand of hit entities.");
-                break;
             case "magic_sack":
                 item = createMagicSack();
                 break;

@@ -1,6 +1,7 @@
-package  com.Items;
+package com.Items;
 
 import LegendaryWeapons.legendaryWeapons.LegendaryWeapons;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
@@ -108,16 +109,82 @@ public class Items implements Listener {
 
         if (name.equals(THUNDER_STRIKER)) {
             handleThunderStriker(event, player);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDamage(EntityDamageByEntityEvent event) {
+        if (event.isCancelled()) return;
+        if (!(event.getDamager() instanceof Player)) return;
+
+        Player player = (Player) event.getDamager();
+        ItemStack item = player.getInventory().getItemInMainHand();
+
+        if (!isCustomItem(item)) return;
+
+        String name = ChatColor.stripColor(item.getItemMeta().getDisplayName());
+
         if (name.equals(GODS_GREATAXE)) {
-                double baseDamage = plugin.getConfig().getDouble("items.gods_greataxe.base_damage");
+            event.setCancelled(true);
+
+            ConfigurationSection config = plugin.getConfig().getConfigurationSection("items.gods_greataxe");
+            if (config == null) { // Check if config exists
+                plugin.getLogger().severe("God's Greataxe config is missing in config.yml!");
+                return;
             }
-            // Add knockback effect
+
+            if (checkCooldown(player, "gods_greataxe_attack", 1)) {
+                return;
+            }
+
+            LivingEntity mainTarget = (LivingEntity) event.getEntity();
+            config = plugin.getConfig().getConfigurationSection("items.gods_greataxe");
+
+            // Calculate base damage (ensure it's not 0)
+            double damage = config.getDouble("base_damage", 10.0); // Default to 10 if missing
+            if (player.getFallDistance() > 0 && !player.isOnGround()) {
+                damage *= config.getDouble("critical_multiplier", 1.5);
+                player.getWorld().spawnParticle(Particle.CRIT, mainTarget.getLocation(), 30);
+            }
+
+            // Apply main target damage (critical fix)
+            mainTarget.damage(damage, player);
+            player.sendMessage(ChatColor.GOLD + "Dealt " + damage + " damage!");
+
+            // Knockback
+            Vector knockback = player.getLocation().getDirection()
+                    .multiply(config.getDouble("knockback_multiplier", 1.2))
+                    .setY(config.getDouble("vertical_knockback", 0.5));
+            mainTarget.setVelocity(knockback);
+
+            // Sweep attack
+            handleGodsGreataxeSweep(player, mainTarget, damage);
+
+            // Effects
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_ATTACK_SWEEP, 1.0f, 0.7f);
+            player.getWorld().spawnParticle(Particle.SWEEP_ATTACK, player.getLocation().add(0, 1, 0), 5);
+            player.setExhaustion(player.getExhaustion() + 0.3f);
+        }
+
+        // Life Drainer - Healing on Critical Hits
+        if (name.equals(LIFE_DRAINER)) {
+            if (player.getFallDistance() > 0 && !player.isOnGround() && !player.isSneaking()) {
+                double health = player.getHealth();
+                double newHealth = Math.min(player.getMaxHealth(), health + 4);
+                player.setHealth(newHealth);
+
+                player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 8, 0.5, 0.5, 0.5);
+                player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.5f);
+            }
+        }
+        // Speed Daggers - Bypass immunity frames
+        else if (name.equals(SPEED_DAGGERS)) {
             if (event.getEntity() instanceof LivingEntity) {
-                Vector knockback = player.getLocation().getDirection().multiply(1.5).setY(1);
-                ((LivingEntity) event.getEntity()).setVelocity(knockback);
+                ((LivingEntity) event.getEntity()).setNoDamageTicks(0);
             }
         }
     }
+
     @EventHandler
     public void onPlayerHeldItem(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
@@ -646,55 +713,39 @@ public class Items implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onDamage(EntityDamageByEntityEvent event) {
-        if (event.isCancelled()) return;
-        if (!(event.getDamager() instanceof Player)) return;
+    /* ========== GOD'S GREATAXE METHODS ========== */
 
-        Player player = (Player) event.getDamager();
-        ItemStack item = player.getInventory().getItemInMainHand();
+    private void handleGodsGreataxeSweep(Player player, LivingEntity mainTarget, double mainDamage) {
+        ConfigurationSection config = plugin.getConfig().getConfigurationSection("items.gods_greataxe");
+        double radius = config.getDouble("sweep_radius", 3.0);
+        double sweepDamageMultiplier = config.getDouble("sweep_damage", 1.0);
 
-        if (!isCustomItem(item)) return;
+        // Damage all nearby entities
+        for (Entity entity : player.getNearbyEntities(radius, radius, radius)) {
+            if (entity instanceof LivingEntity && entity != mainTarget && entity != player) {
+                LivingEntity target = (LivingEntity) entity;
 
-        String name = ChatColor.stripColor(item.getItemMeta().getDisplayName());
+                // Calculate direction to target
+                Vector toTarget = target.getLocation().toVector()
+                        .subtract(player.getLocation().toVector())
+                        .normalize();
+                Vector attackDir = player.getLocation().getDirection().normalize();
 
-        // Life Drainer - Healing on Critical Hits
-        if (name.equals(LIFE_DRAINER)) {
-            if (player.getFallDistance() > 0 && !player.isOnGround() && !player.isSneaking()) {
-                double health = player.getHealth();
-                double newHealth = Math.min(player.getMaxHealth(), health + 4);
-                player.setHealth(newHealth);
+                // Only hit targets in front (120° arc)
+                if (toTarget.dot(attackDir) > -0.5) {
+                    target.damage(mainDamage * sweepDamageMultiplier, player);
 
-                // Visual and sound effects
-                player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0, 1, 0), 8, 0.5, 0.5, 0.5);
-                player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.5f);
-            }
-        }
-        // God's Greataxe - Massive Damage
-        else if (name.equals(GODS_GREATAXE)) {
-            double damage = 18; // Base damage
+                    // Apply knockback
+                    Vector knockback = attackDir.clone()
+                            .multiply(config.getDouble("knockback_multiplier"))
+                            .setY(config.getDouble("vertical_knockback"));
+                    target.setVelocity(knockback);
 
-            // Critical hit bonus (50% more damage)
-            if (player.getFallDistance() > 0 && !player.isOnGround()) {
-                damage *= 1.5;
-                player.getWorld().spawnParticle(Particle.CRIT, event.getEntity().getLocation(), 30);
-            }
-
-            // Apply damage and knockback
-            event.setDamage(damage);
-            if (event.getEntity() instanceof LivingEntity) {
-                LivingEntity target = (LivingEntity) event.getEntity();
-                Vector knockback = player.getLocation().getDirection().multiply(1.2).setY(0.4);
-                target.setVelocity(knockback);
-            }
-
-            // Sound effect
-            player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR, 1.0f, 0.8f);
-        }
-        // Speed Daggers - Bypass immunity frames
-        else if (name.equals(SPEED_DAGGERS)) {
-            if (event.getEntity() instanceof LivingEntity) {
-                ((LivingEntity) event.getEntity()).setNoDamageTicks(0);
+                    // Damage indicator particles
+                    target.getWorld().spawnParticle(Particle.DAMAGE_INDICATOR,
+                            target.getLocation().add(0, 1, 0),
+                            5);
+                }
             }
         }
     }
@@ -741,6 +792,7 @@ public class Items implements Listener {
         item.setItemMeta(meta);
         return item;
     }
+
     private ItemStack createGodsGreataxe() {
         ConfigurationSection config = plugin.getConfig().getConfigurationSection("items.gods_greataxe");
         ItemStack axe = new ItemStack(Material.valueOf(config.getString("material")));
@@ -749,27 +801,42 @@ public class Items implements Listener {
         // Set display name and lore
         meta.setDisplayName(ChatColor.translateAlternateColorCodes('&', config.getString("display_name")));
 
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.AQUA + "Sweeping attacks deal full damage");
+        lore.add(ChatColor.AQUA + "to all enemies in front of you");
+        meta.setLore(lore);
+
         // Make unbreakable
         meta.setUnbreakable(true);
 
-        // Add attack speed attribute
-        Collection<AttributeModifier> modifiers = new ArrayList<>();
-        modifiers.add(new AttributeModifier(
-                UUID.randomUUID(),
-                "generic.attackSpeed",
-                config.getDouble("attribute_modifiers.attack_speed"),
-                AttributeModifier.Operation.ADD_NUMBER,
-                EquipmentSlot.HAND
-        ));
-        modifiers.add(new AttributeModifier(
-                UUID.randomUUID(),
-                "generic.attackDamage",
-                config.getDouble("attribute_modifiers.attack_damage"),
-                AttributeModifier.Operation.ADD_NUMBER,
-                EquipmentSlot.HAND
-        ));
-        meta.setAttributeModifiers((Multimap<Attribute, AttributeModifier>) modifiers);
+        // Create Multimap for attributes
+        Multimap<Attribute, AttributeModifier> modifiers = HashMultimap.create();
 
+        // Add attack speed modifier (modern builder pattern)
+        modifiers.put(
+                Attribute.GENERIC_ATTACK_SPEED,
+                new AttributeModifier(
+                        UUID.randomUUID(), // Required in Paper 1.21+
+                        "generic.attackSpeed", // Name
+                        config.getDouble("attribute_modifiers.attack_speed"), // Value
+                        AttributeModifier.Operation.ADD_NUMBER, // Operation
+                        EquipmentSlot.HAND // Slot
+                )
+        );
+
+        // Add attack damage modifier (modern builder pattern)
+        modifiers.put(
+                Attribute.GENERIC_ATTACK_DAMAGE,
+                new AttributeModifier(
+                        UUID.randomUUID(), // Required in Paper 1.21+
+                        "generic.attackDamage", // Name
+                        config.getDouble("attribute_modifiers.attack_damage"), // Value
+                        AttributeModifier.Operation.ADD_NUMBER, // Operation
+                        EquipmentSlot.HAND // Slot
+                )
+        );
+
+        meta.setAttributeModifiers(modifiers);
         axe.setItemMeta(meta);
         return axe;
     }

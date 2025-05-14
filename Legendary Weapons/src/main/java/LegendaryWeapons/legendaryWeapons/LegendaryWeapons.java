@@ -35,6 +35,10 @@ public class LegendaryWeapons extends JavaPlugin {
             return;
         }
 
+        saveDefaultConfig(); // Creates config.yml if missing
+        reloadConfig(); // Loads values into memory
+
+
         instance = this;
 
         // Register event listeners
@@ -136,22 +140,21 @@ public class LegendaryWeapons extends JavaPlugin {
         meta.addEnchant(Enchantment.PROTECTION, 3, true);
 
         meta.setLore(Arrays.asList(
-                ChatColor.GRAY + "Royal headwear with the strength of netherite",
                 ChatColor.BLUE + "Grants regeneration and resistance"
         ));
         goldenCrown.setItemMeta(meta);
 
-        // Create the recipe (now cheaper since we're not using netherite)
+        // Create the recipe
         ShapedRecipe recipe = new ShapedRecipe(
                 new NamespacedKey(this, "golden_crown"),
                 goldenCrown
         );
 
-        recipe.shape("GGG", "GDG", "GGG");
+        recipe.shape("GGG", "GHG", "GGG");
 
-        // G = Gold Block, D = Diamond Helmet
+        // G = Gold Block, H = Golden Helmet
         recipe.setIngredient('G', Material.GOLD_BLOCK);
-        recipe.setIngredient('D', Material.GOLDEN_HELMET);
+        recipe.setIngredient('H', Material.GOLDEN_HELMET);
 
         getServer().addRecipe(recipe);
     }
